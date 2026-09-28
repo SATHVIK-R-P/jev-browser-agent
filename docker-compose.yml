@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  jev-browser-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jev-browser-agent
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - JEV_MODE=mock
+      - LLM_PROVIDER=mock
+      - AUTO_EXECUTE_THRESHOLD=0.90
+      - LOW_RISK_THRESHOLD=0.70
+      - HEADLESS=true
+      - MAX_STEPS=30
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

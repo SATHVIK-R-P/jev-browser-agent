@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JEV Browser Agent — Autonomous Web Task Executor</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="12 6 12 12 16 14"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">JEV Browser Agent</h1>
+          <p class="brand-subtitle">Autonomous Web Task Executor</p>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="badge badge-mode" id="jevModeBadge">
+          <span class="status-dot green"></span>
+          <span id="jevModeText">MOCK JEV MODE</span>
+        </div>
+        <div class="badge badge-threshold" id="thresholdBadge" title="Confidence Routing Thresholds">
+          <span>Auto &ge; <strong id="threshAuto">0.90</strong> | Low-Risk &ge; <strong id="threshLow">0.70</strong></span>
+        </div>
+        <div class="badge badge-ws" id="wsStatusBadge">
+          <span class="status-dot" id="wsDot"></span>
+          <span id="wsStatusText">Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container Grid -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Controls & Decisions -->
+      <section class="col-left">
+        <!-- Section A: Task Input Card -->
+        <div class="card task-card">
+          <div class="card-header">
+            <span class="card-tag">A</span>
+            <h2>Task Input</h2>
+          </div>
+          <div class="card-body">
+            <label for="taskInput" class="input-label">Describe what you want the browser agent to do:</label>
+            <textarea id="taskInput" class="task-textarea" rows="3" placeholder="e.g. Open Wikipedia and search for artificial intelligence."></textarea>
+
+            <div class="task-presets">
+              <span class="presets-title">Quick Examples:</span>
+              <div class="preset-chips">
+                <button type="button" class="chip" onclick="setExample(1)">Wikipedia AI</button>
+                <button type="button" class="chip" onclick="setExample(2)">Playwright Search</button>
+                <button type="button" class="chip" onclick="setExample(3)">Find Contact Page</button>
+                <button type="button" class="chip" onclick="setExample(4)">FastAPI Docs</button>
+                <button type="button" class="chip" onclick="setExample(5)">Laptops &lt; ₹50,000</button>
+              </div>
+            </div>
+
+            <div class="task-controls">
+              <div class="steps-config">
+                <label for="maxStepsInput">Max Steps:</label>
+                <input type="number" id="maxStepsInput" value="30" min="5" max="100">
+              </div>
+              <div class="action-buttons">
+                <button id="startBtn" class="btn btn-primary" onclick="startTask()">
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  START TASK
+                </button>
+                <button id="pauseBtn" class="btn btn-secondary" onclick="pauseTask()" disabled>
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  PAUSE
+                </button>
+                <button id="resumeBtn" class="btn btn-secondary" onclick="resumeTask()" disabled>
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  RESUME
+                </button>
+                <button id="stopBtn" class="btn btn-danger" onclick="stopTask()" disabled>
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg>
+                  STOP
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section E: Human Approval Banner (Shown dynamically when confirmation required) -->
+        <div id="approvalBanner" class="card approval-card hidden">
+          <div class="approval-header">
+            <div class="approval-icon">⚠️</div>
+            <div>
+              <h3 class="approval-title">ACTION REQUIRES APPROVAL</h3>
+              <p class="approval-subtitle">Human safety gate triggered</p>
+            </div>
+          </div>
+          <div class="approval-body">
+            <div class="approval-field">
+              <span class="label">Action:</span>
+              <strong id="approvalActionDesc">Submit Form</strong>
+            </div>
+            <div class="approval-field">
+              <span class="label">Risk Level:</span>
+              <span id="approvalRiskBadge" class="badge-risk high">HIGH</span>
+            </div>
+            <div class="approval-field">
+              <span class="label">Reason:</span>
+              <span id="approvalReasonText">Potential external side effect</span>
+            </div>
+            <div class="approval-buttons">
+              <button id="approveBtn" class="btn btn-success" onclick="resolveApproval(true)">[ APPROVE ]</button>
+              <button id="rejectBtn" class="btn btn-danger" onclick="resolveApproval(false)">[ REJECT ]</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section C: Decision Panel -->
+        <div class="card decision-card">
+          <div class="card-header">
+            <span class="card-tag">C</span>
+            <h2>Decision Panel</h2>
+            <span id="activeProviderBadge" class="badge badge-provider">JEV</span>
+          </div>
+          <div class="card-body">
+            <div class="decision-meta-row">
+              <div class="meta-item">
+                <span class="meta-label">Selected Action</span>
+                <span id="selectedActionText" class="meta-val highlight">-</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Target ID</span>
+                <span id="selectedTargetText" class="meta-val mono">-</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Confidence</span>
+                <span id="confidenceText" class="meta-val conf">-</span>
+              </div>
+            </div>
+
+            <!-- Confidence Bar -->
+            <div class="confidence-bar-wrapper">
+              <div class="confidence-bar-bg">
+                <div id="confidenceBarFill" class="confidence-bar-fill" style="width: 0%;"></div>
+              </div>
+              <div class="confidence-ticks">
+                <span style="left: 70%;">0.70 Low-Risk</span>
+                <span style="left: 90%;">0.90 Auto</span>
+              </div>
+            </div>
+
+            <div class="decision-reason-box">
+              <span class="reason-label">System Rationale:</span>
+              <p id="decisionReasonText" class="reason-text">Awaiting task initiation...</p>
+            </div>
+
+            <!-- Candidate Actions List -->
+            <div class="candidates-section">
+              <div class="candidates-header">
+                <h3>Candidate Actions Evaluated:</h3>
+                <span id="candidatesCount" class="count-badge">0 candidates</span>
+              </div>
+              <div id="candidatesList" class="candidates-list">
+                <p class="empty-state">No candidates evaluated yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section F: Performance Metrics -->
+        <div class="card metrics-card">
+          <div class="card-header">
+            <span class="card-tag">F</span>
+            <h2>Performance & Telemetry</h2>
+          </div>
+          <div class="card-body metrics-grid">
+            <div class="metric-box">
+              <span class="m-val" id="metricSteps">0</span>
+              <span class="m-lbl">Steps</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val highlight-blue" id="metricJev">0</span>
+              <span class="m-lbl">JEV Decisions</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val highlight-purple" id="metricLlm">0</span>
+              <span class="m-lbl">LLM Fallbacks</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val" id="metricAvgConf">0.0%</span>
+              <span class="m-lbl">Avg Confidence</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val" id="metricDecLatency">0ms</span>
+              <span class="m-lbl">Avg Decision Latency</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val" id="metricActLatency">0ms</span>
+              <span class="m-lbl">Action Latency</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val highlight-green" id="metricSuccess">0</span>
+              <span class="m-lbl">Successful</span>
+            </div>
+            <div class="metric-box">
+              <span class="m-val highlight-red" id="metricFailed">0</span>
+              <span class="m-lbl">Failed</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Live View & Action Log -->
+      <section class="col-right">
+        <!-- Section B: Live Browser Status -->
+        <div class="card browser-card">
+          <div class="card-header">
+            <div class="browser-header-left">
+              <span class="card-tag">B</span>
+              <h2>Live Browser Status</h2>
+            </div>
+            <div class="browser-header-right">
+              <span id="agentStatusBadge" class="status-pill idle">IDLE</span>
+              <span id="stepProgressBadge" class="step-badge">Step 0 / 30</span>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <!-- Browser Address Bar -->
+            <div class="browser-url-bar">
+              <span class="url-shield">🔒</span>
+              <input type="text" id="browserUrl" class="url-input" readonly value="about:blank">
+              <span id="browserTitle" class="url-title">Ready</span>
+            </div>
+
+            <!-- Live Viewport / Screenshot Frame -->
+            <div class="viewport-container" id="viewportContainer">
+              <div id="viewportPlaceholder" class="viewport-placeholder">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <p>Browser viewport will render live state here upon task execution.</p>
+              </div>
+              <img id="liveScreenshot" class="live-screenshot hidden" alt="Live browser viewport">
+            </div>
+
+            <!-- Subgoal Progress -->
+            <div class="subgoal-box">
+              <span class="subgoal-label">Current Subgoal:</span>
+              <span id="currentSubgoalText" class="subgoal-text">Awaiting task...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section D: Action Log -->
+        <div class="card log-card">
+          <div class="card-header">
+            <div class="log-header-left">
+              <span class="card-tag">D</span>
+              <h2>Action Log & Verification Timeline</h2>
+            </div>
+            <button class="btn btn-tiny" onclick="clearLog()">Clear Log</button>
+          </div>
+          <div class="card-body">
+            <div id="actionTimeline" class="action-timeline">
+              <div class="log-entry">
+                <span class="log-time">00:00:00</span>
+                <span class="log-tag tag-system">SYSTEM</span>
+                <span class="log-msg">JEV Browser Agent ready. Enter task or select an example above.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# JEV Browser Agent Configuration
+jev:
+  mode: "mock" # "mock" or "real"
+  api_key: ""
+  api_url: "https://api.jev.ai/v1"
+  model: "system-one-v1"
+  timeout_seconds: 10.0
+
+llm:
+  provider: "mock" # "mock", "openai-compatible", "gemini"
+  api_key: ""
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+  timeout_seconds: 15.0
+
+confidence_thresholds:
+  auto_execute: 0.90   # >= 0.90: Execute automatically
+  low_risk: 0.70       # 0.70 - 0.89: Execute if LOW risk, else require human confirmation
+                       # < 0.70: Escalate to fallback LLM; if LLM uncertain, ask human
+
+browser:
+  headless: true
+  slow_mo_ms: 250
+  timeout_ms: 30000
+  viewport:
+    width: 1280
+    height: 800
+
+agent:
+  max_steps: 30
+  capture_screenshots: true
+  action_delay_ms: 500
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  db_path: "data/jev_agent.db"
